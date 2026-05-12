@@ -1,0 +1,9 @@
+venv_linux/
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+data/tmp/
+.env
+goodpoints-*/
+*.tar.gz

@@ -1,0 +1,81 @@
+{
+  "truth_time": 67.69352841377258,
+  "experiments": [
+    {
+      "size": 10,
+      "cte": {
+        "build_time": 312.7903411388397,
+        "shap_time": 5.902642488479614,
+        "total_time": 318.69298362731934,
+        "corr_global": 0.9350548780070673,
+        "corr_local": 0.6707142366823795,
+        "speedup_vs_truth": 11.468342957563891
+      },
+      "random": {
+        "build_time": 0.0,
+        "shap_time": 7.255500793457031,
+        "total_time": 7.255500793457031,
+        "corr_global": 0.9718994047711518,
+        "corr_local": 0.7150482928329744,
+        "speedup_vs_truth": 9.329959480511423
+      }
+    },
+    {
+      "size": 50,
+      "cte": {
+        "build_time": 320.97109866142273,
+        "shap_time": 12.370119094848633,
+        "total_time": 333.34121775627136,
+        "corr_global": 0.9292588495575221,
+        "corr_local": 0.6911667179329436,
+        "speedup_vs_truth": 5.472342496844887
+      },
+      "random": {
+        "build_time": 0.0,
+        "shap_time": 14.248804092407227,
+        "total_time": 14.248804092407227,
+        "corr_global": 0.9515354682666961,
+        "corr_local": 0.7659360196862504,
+        "speedup_vs_truth": 4.750821751408913
+      }
+    },
+    {
+      "size": 100,
+      "cte": {
+        "build_time": 312.8591983318329,
+        "shap_time": 14.709401845932007,
+        "total_time": 327.5686001777649,
+        "corr_global": 0.9472929909529115,
+        "corr_local": 0.6964032605352198,
+        "speedup_vs_truth": 4.602058542067346
+      },
+      "random": {
+        "build_time": 0.0,
+        "shap_time": 17.657989263534546,
+        "total_time": 17.657989263534546,
+        "corr_global": 0.9494073957016436,
+        "corr_local": 0.8203288219009534,
+        "speedup_vs_truth": 3.8335921153585852
+      }
+    },
+    {
+      "size": 200,
+      "cte": {
+        "build_time": 318.45051074028015,
+        "shap_time": 26.23958945274353,
+        "total_time": 344.6901001930237,
+        "corr_global": 0.9254649780037739,
+        "corr_local": 0.6866592162985001,
+        "speedup_vs_truth": 2.5798242207899618
+      },
+      "random": {
+        "build_time": 0.0,
+        "shap_time": 28.255666971206665,
+        "total_time": 28.255666971206665,
+        "corr_global": 0.9694769279393174,
+        "corr_local": 0.8430030759766225,
+        "speedup_vs_truth": 2.395750504943105
+      }
+    }
+  ]
+}
