@@ -110,9 +110,74 @@ def plot_rq3(results_file):
     plt.savefig(Path(results_file).parent / 'rq3_train_val.png', dpi=300)
     plt.close()
 
+def plot_breakeven(results_file):
+    """
+    Break-even analysis using KernelExplainer timings from rq4_breakeven.json.
+
+    Shows cumulative time SAVED by using CTE instead of Random:
+        savings(n) = n * delta - build_time
+
+    Starts negative (you're in debt from building the coreset),
+    crosses zero at n* (break-even), then goes positive (CTE pays off).
+    This makes the break-even point visually obvious.
+    """
+    with open(results_file) as f:
+        data = json.load(f)
+
+    experiments = data['experiments']
+    n_explain   = data['n_explain_per_batch']
+    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
+
+    # x-axis: go to 2× the largest n* so all break-even points are visible
+    max_n_star = max(
+        exp['build_time'] / (exp['t_rand_shap'] - exp['t_cte_shap'])
+        for exp in experiments
+        if (exp['t_rand_shap'] - exp['t_cte_shap']) > 0
+    )
+    max_batches = int(max_n_star * 2)
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    for exp, color in zip(experiments, colors):
+        size       = exp['size']
+        build_time = exp['build_time']
+        delta      = exp['t_rand_shap'] - exp['t_cte_shap']
+
+        if delta <= 0:
+            continue
+
+        n_batches = np.arange(0, max_batches + 1)
+        savings   = n_batches * delta - build_time  # negative → zero → positive
+
+        n_star = build_time / delta
+
+        ax.plot(n_batches, savings, color=color, linewidth=2,
+                label=f'bg={size}  (n*={n_star:.0f} batches = {n_star*n_explain:.0f} samples)')
+        ax.axvline(n_star, color=color, linestyle=':', alpha=0.5)
+
+    ax.axhline(0, color='black', linewidth=1.2, linestyle='--', label='Break-even (savings = 0)')
+    ax.fill_between(np.arange(0, max_batches + 1), 0,
+                    alpha=0.04, color='green')
+
+    ax.set_xlabel(f'Number of explanation batches ({n_explain} samples/batch)')
+    ax.set_ylabel('Cumulative time saved by CTE vs Random (s)')
+    ax.set_title('CTE Break-even Analysis (KernelExplainer)\n'
+                 'Below zero = CTE still in debt from build cost  |  Above zero = CTE pays off')
+    ax.legend(fontsize=8)
+    ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    out_path = Path(results_file).parent / 'rq4_breakeven.png'
+    plt.savefig(out_path, dpi=300)
+    plt.close()
+    print(f"Break-even plot saved to {out_path}")
+
+
 if __name__ == "__main__":
     results_dir = Path(__file__).parent.parent / 'results'
     if (results_dir / 'rq1.json').exists(): plot_rq1(results_dir / 'rq1.json')
     if (results_dir / 'rq2.json').exists(): plot_rq2(results_dir / 'rq2.json')
     if (results_dir / 'rq3.json').exists(): plot_rq3(results_dir / 'rq3.json')
+    if (results_dir / 'rq4_breakeven.json').exists():
+        plot_breakeven(results_dir / 'rq4_breakeven.json')
     print("Plots generated in results directory.")
