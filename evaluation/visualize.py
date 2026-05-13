@@ -11,8 +11,8 @@ def plot_rq1(results_file):
     experiments = data['experiments']
     sizes = [exp['size'] for exp in experiments]
     
-    cte_corr = [exp['cte']['corr_global'] for exp in experiments]
-    rand_corr = [exp['random']['corr_global'] for exp in experiments]
+    cte_mae = [exp['cte']['mae_global'] for exp in experiments]
+    rand_mae = [exp['random']['mae_global'] for exp in experiments]
     
     cte_speedup = [exp['cte']['speedup_vs_truth'] for exp in experiments]
     rand_speedup = [exp['random']['speedup_vs_truth'] for exp in experiments]
@@ -20,11 +20,11 @@ def plot_rq1(results_file):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
     
     # Plot 1: Fidelity vs Size
-    ax1.plot(sizes, cte_corr, marker='o', label='CTE (Kernel Thinning)', color='darkblue')
-    ax1.plot(sizes, rand_corr, marker='s', label='Random Background', color='darkorange')
+    ax1.plot(sizes, cte_mae, marker='o', label='CTE (Kernel Thinning)', color='darkblue')
+    ax1.plot(sizes, rand_mae, marker='s', label='Random Background', color='darkorange')
     ax1.set_xlabel('Background Size ($N_{bg}$)')
-    ax1.set_ylabel('Spearman Rank Correlation')
-    ax1.set_title('Explanation Fidelity (Global Importance)')
+    ax1.set_ylabel('Mean Absolute Error (MAE)')
+    ax1.set_title('Explanation Error (Global Importance, Lower is Better)')
     ax1.legend()
     ax1.grid(True, alpha=0.3)
     

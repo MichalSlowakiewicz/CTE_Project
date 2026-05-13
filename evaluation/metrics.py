@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.stats import spearmanr
+from scipy.stats import spearmanr, pearsonr
 
 def mean_absolute_shap(shap_values):
     """
@@ -29,6 +29,38 @@ def spearman_rank_correlation(shap_a, shap_b, global_importance=True):
             if not np.isnan(corr):
                 corrs.append(corr)
         return np.mean(corrs)
+
+def pearson_correlation(shap_a, shap_b, global_importance=True):
+    """
+    Computes the Pearson correlation between two sets of SHAP values.
+    """
+    if global_importance:
+        imp_a = mean_absolute_shap(shap_a)
+        imp_b = mean_absolute_shap(shap_b)
+        corr, _ = pearsonr(imp_a + 1e-10, imp_b + 1e-10)
+        return corr
+    else:
+        corrs = []
+        for i in range(len(shap_a)):
+            corr, _ = pearsonr(np.abs(shap_a[i]) + 1e-10, np.abs(shap_b[i]) + 1e-10)
+            if not np.isnan(corr):
+                corrs.append(corr)
+        return np.mean(corrs)
+
+def mae_shap(shap_a, shap_b, global_importance=True):
+    """
+    Computes the Mean Absolute Error (MAE) between two sets of SHAP values.
+    Lower is better. Represents the approximation error.
+    """
+    if global_importance:
+        imp_a = mean_absolute_shap(shap_a)
+        imp_b = mean_absolute_shap(shap_b)
+        return np.mean(np.abs(imp_a - imp_b))
+    else:
+        maes = []
+        for i in range(len(shap_a)):
+            maes.append(np.mean(np.abs(shap_a[i] - shap_b[i])))
+        return np.mean(maes)
 
 def top_k_overlap(shap_a, shap_b, k=10, global_importance=True):
     """

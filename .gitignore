@@ -3,7 +3,14 @@ __pycache__/
 *.pyc
 *.pyo
 .ipynb_checkpoints/
-data/tmp/
 .env
 goodpoints-*/
 *.tar.gz
+
+# Old prototype files — not needed
+old_files/
+
+# NOTE: data/ecom-offers/ and data/cache/ are intentionally tracked.
+# They are small (~3 MB total) and allow colleagues to run experiments
+# without any data download or preprocessing step.
+data/tmp
