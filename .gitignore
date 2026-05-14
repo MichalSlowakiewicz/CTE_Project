@@ -14,3 +14,5 @@ old_files/
 # They are small (~3 MB total) and allow colleagues to run experiments
 # without any data download or preprocessing step.
 data/tmp
+.idea/
+.venv/
