@@ -13,6 +13,8 @@ from data.data_loader import load_dataset
 from models.trainer import train_model
 from cte_compression.kernel_thinning import build_cte_background, build_iid_background
 from evaluation.metrics import mean_absolute_shap
+import xgboost as xgb
+import joblib
 
 def run_rq2():
     print("Loading dataset for RQ2...")
@@ -22,30 +24,35 @@ def run_rq2():
         warnings.warn(f"Failed to load TabReD dataset, falling back to synthetic. Error: {e}")
         data = load_dataset()
         
-    train_size = min(50_000, len(data['X_train']))
-    sampled_indices = data['X_train'].sample(train_size, random_state=42).index
-    X_train = data['X_train'].loc[sampled_indices].reset_index(drop=True)
-    y_train = data['y_train'][sampled_indices]
+    cache_dir = Path(__file__).parent.parent / 'data' / 'cache'
     
-    print(f"Training XGBoost model on {train_size} samples...")
-    model = train_model(X_train, y_train, X_val=data['X_val'], y_val=data['y_val'], verbose=True)
+    if not (cache_dir / 'xgb_model.pkl').exists():
+        raise FileNotFoundError("Cache not found! Please run `python experiments/prepare_cache.py` first.")
     
-    def pred_fn(X):
-        return model.predict_proba(X)[:, 1]
+    print("Loading cached XGBoost model...")
+    model = joblib.load(cache_dir / 'xgb_model.pkl')
+    
+        
+    X_train = data['X_train'] # needed for random background sampling
 
-    # Create backgrounds
     bg_size = 100
-    print(f"Building CTE background (size {bg_size})...")
-    bg_cte = build_cte_background(X_train, target_size=bg_size, verbose=False)
-    explainer_cte = shap.KernelExplainer(pred_fn, bg_cte)
+    print(f"Loading CTE Background (size {bg_size})...")
+    bg_cte_path = cache_dir / f'bg_cte_{bg_size}.parquet'
+    if not bg_cte_path.exists():
+        print(f"Warning: {bg_cte_path} not found. Generating on the fly...")
+        bg_cte = build_cte_background(X_train, target_size=bg_size, verbose=False)
+        bg_cte.to_parquet(bg_cte_path)
+    else:
+        bg_cte = pd.read_parquet(bg_cte_path)
+    explainer_cte = shap.TreeExplainer(model, data=bg_cte, model_output="probability", feature_perturbation="interventional")
     
     print(f"Building Random background (size {bg_size})...")
     bg_rand = build_iid_background(X_train, size=bg_size)
-    explainer_rand = shap.KernelExplainer(pred_fn, bg_rand)
+    explainer_rand = shap.TreeExplainer(model, data=bg_rand, model_output="probability", feature_perturbation="interventional")
     
-    print(f"Building Ground Truth background (size 1000)...")
-    bg_truth = build_iid_background(X_train, size=1000)
-    explainer_truth = shap.KernelExplainer(pred_fn, bg_truth)
+    print(f"Loading cached Ground Truth Background (Full Dataset)...")
+    bg_truth = pd.read_parquet(cache_dir / 'bg_truth_full.parquet')
+    explainer_truth = shap.TreeExplainer(model, data=bg_truth, model_output="probability", feature_perturbation="interventional")
     
     # We will slice the validation set into 5 chronological windows
     # `periods_val` has the timestamp or period index. We can sort `X_val` by `periods_val`.

@@ -14,6 +14,7 @@ This gives better explanations per background point than i.i.d. sampling.
 import numpy as np
 import pandas as pd
 from sklearn.metrics.pairwise import rbf_kernel
+from sklearn.preprocessing import StandardScaler
 import goodpoints.kt as kt
 
 
@@ -54,7 +55,7 @@ def rbf_kernel_wrapper(X, Y):
     return K
 
 
-def build_cte_background(X_data, target_size=50, max_halving_rounds=6,
+def build_cte_background(X_data, target_size=50, max_halving_rounds=10,
                           verbose=True):
     """
     Build a CTE background set using Kernel Thinning.
@@ -84,7 +85,11 @@ def build_cte_background(X_data, target_size=50, max_halving_rounds=6,
         return X_clean.sample(min(target_size, len(X_clean)), random_state=42)
 
     # goodpoints requires a C-contiguous float64 array
-    X_np = np.ascontiguousarray(X_clean.values.astype(np.float64))
+    X_np_raw = np.ascontiguousarray(X_clean.values.astype(np.float64))
+    
+    # Scale features so that RBF Kernel (Euclidean distance) works correctly on tabular data
+    scaler = StandardScaler()
+    X_np = scaler.fit_transform(X_np_raw)
     n_out = len(X_np) // (2 ** m)
 
     if verbose:
