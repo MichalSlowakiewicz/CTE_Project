@@ -1,18 +1,37 @@
-venv_linux/
-__pycache__/
-*.pyc
-*.pyo
-.ipynb_checkpoints/
-.env
-goodpoints-*/
-*.tar.gz
+# Virtual environments
+venv*/
+.env/
+env/
+.venv/
 
-# Old prototype files — not needed
+# Python caching
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Temporary directories
+.temp_venv/
+.pip_tmp/
+.tmp/
+.ipynb_checkpoints/
+
+# Data and Cache
+data/cache/
+data/cache_full/
+*.parquet
+
+# IDEs
+.idea/
+.vscode/
+
+# Legacy
 old_files/
 
-# NOTE: data/ecom-offers/ and data/cache/ are intentionally tracked.
-# They are small (~3 MB total) and allow colleagues to run experiments
-# without any data download or preprocessing step.
-data/tmp
-.idea/
-.venv/
+# Large binaries / results
+results/*/rq*.json
+*.log
+archive/
+data/
+models/
+catboost_info/
+goodpoints-0.4.2/
