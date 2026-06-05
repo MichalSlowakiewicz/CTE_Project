@@ -1,11 +1,3 @@
-# Accelerating Explainable AI with Kernel Thinning (CTE)
-
-Welcome to the **CTE Explainability Project**, a comprehensive framework designed to drastically accelerate SHAP value computations for Machine Learning models using Distribution Compression.
-
-## 🎯 Project Overview
-
-As Machine Learning models grow in complexity, generating accurate global explanations (like SHAP values) across large datasets becomes computationally prohibitive. 
-
 # Coreset Tree Explainer (CTE) 🌲⚡
 
 A research repository exploring the scalability, efficiency, and robustness of the **Coreset Tree Explainer (CTE)** algorithm against traditional Random Sampling background distributions for Explainable AI (XAI).
@@ -15,7 +7,7 @@ This project dynamically compresses large background datasets ($N=100,000$) into
 
 ### Key Features
 - **Data Compression:** Uses `goodpoints` to compress massive datasets via Maximum Mean Discrepancy (MMD) minimization.
-- **Oracle Evaluation Pipeline:** Fully optimized pipeline utilizing C++ native `shap.TreeExplainer` and `shap.LinearExplainer` to establish exact Ground Truth baselines in milliseconds.
+- **Oracle Evaluation Pipeline:** Fully optimized pipeline utilizing C++ native `shap.TreeExplainer` and `shap.LinearExplainer` to establish exact Ground Truth baselines.
 - **Architecture Agnosticism:** Benchmarks compression effectiveness across 8 diverse models belonging to two distinct algorithmic families:
   - *Tree-based Ensembles:* XGBoost, LightGBM, CatBoost, Random Forest
   - *Linear Models:* Logistic Regression, Ridge, Lasso, SVC

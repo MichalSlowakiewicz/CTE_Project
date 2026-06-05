@@ -3,84 +3,84 @@
   "experiments": [
     {
       "size": 4,
-      "build_time": 4.577947616577148,
-      "truth_time_per_batch": 0.10065960884094238,
-      "cte_time_per_batch": 0.005218029022216797,
-      "delta": 0.09544157981872559,
-      "n_star_batches": 47.96596646107651,
-      "n_star_samples": 4796.596646107651
+      "build_time": 3.1759116649627686,
+      "truth_time_per_batch": 0.04817080497741699,
+      "cte_time_per_batch": 0.005151987075805664,
+      "delta": 0.04301881790161133,
+      "n_star_batches": 73.82610261924027,
+      "n_star_samples": 7382.610261924027
     },
     {
       "size": 8,
-      "build_time": 4.244545221328735,
-      "truth_time_per_batch": 0.10065960884094238,
-      "cte_time_per_batch": 0.010194540023803711,
-      "delta": 0.09046506881713867,
-      "n_star_batches": 46.91916202383525,
-      "n_star_samples": 4691.916202383525
+      "build_time": 3.0199801921844482,
+      "truth_time_per_batch": 0.04817080497741699,
+      "cte_time_per_batch": 0.008538961410522461,
+      "delta": 0.03963184356689453,
+      "n_star_batches": 76.20085063888153,
+      "n_star_samples": 7620.085063888153
     },
     {
       "size": 16,
-      "build_time": 3.3625590801239014,
-      "truth_time_per_batch": 0.10065960884094238,
-      "cte_time_per_batch": 0.004654884338378906,
-      "delta": 0.09600472450256348,
-      "n_star_batches": 35.024933382670305,
-      "n_star_samples": 3502.4933382670306
+      "build_time": 2.922008514404297,
+      "truth_time_per_batch": 0.04817080497741699,
+      "cte_time_per_batch": 0.005293846130371094,
+      "delta": 0.0428769588470459,
+      "n_star_batches": 68.14868854920235,
+      "n_star_samples": 6814.868854920234
     },
     {
       "size": 32,
-      "build_time": 3.246673822402954,
-      "truth_time_per_batch": 0.10065960884094238,
-      "cte_time_per_batch": 0.008997440338134766,
-      "delta": 0.09166216850280762,
-      "n_star_batches": 35.41999797117508,
-      "n_star_samples": 3541.999797117508
+      "build_time": 3.1397459506988525,
+      "truth_time_per_batch": 0.04817080497741699,
+      "cte_time_per_batch": 0.005852460861206055,
+      "delta": 0.04231834411621094,
+      "n_star_batches": 74.19349731824943,
+      "n_star_samples": 7419.349731824943
     },
     {
       "size": 64,
-      "build_time": 2.968951463699341,
-      "truth_time_per_batch": 0.10065960884094238,
-      "cte_time_per_batch": 0.0052585601806640625,
-      "delta": 0.09540104866027832,
-      "n_star_batches": 31.120742438290502,
-      "n_star_samples": 3112.0742438290504
+      "build_time": 2.6055285930633545,
+      "truth_time_per_batch": 0.04817080497741699,
+      "cte_time_per_batch": 0.00563359260559082,
+      "delta": 0.04253721237182617,
+      "n_star_batches": 61.25292297689643,
+      "n_star_samples": 6125.2922976896425
     },
     {
       "size": 128,
-      "build_time": 6.318725347518921,
-      "truth_time_per_batch": 0.10065960884094238,
-      "cte_time_per_batch": 0.009564638137817383,
-      "delta": 0.091094970703125,
-      "n_star_batches": 69.36415148659967,
-      "n_star_samples": 6936.415148659967
+      "build_time": 2.589755058288574,
+      "truth_time_per_batch": 0.04817080497741699,
+      "cte_time_per_batch": 0.006473064422607422,
+      "delta": 0.04169774055480957,
+      "n_star_batches": 62.10780305672611,
+      "n_star_samples": 6210.780305672612
     },
     {
       "size": 256,
-      "build_time": 0.5781111717224121,
-      "truth_time_per_batch": 0.10065960884094238,
-      "cte_time_per_batch": 0.002895832061767578,
-      "delta": 0.0977637767791748,
-      "n_star_batches": 5.913347364108367,
-      "n_star_samples": 591.3347364108367
+      "build_time": 1.1810650825500488,
+      "truth_time_per_batch": 0.04817080497741699,
+      "cte_time_per_batch": 0.002591848373413086,
+      "delta": 0.045578956604003906,
+      "n_star_batches": 25.91250810788191,
+      "n_star_samples": 2591.250810788191
     },
     {
       "size": 512,
-      "build_time": 0.9566957950592041,
-      "truth_time_per_batch": 0.10065960884094238,
-      "cte_time_per_batch": 0.0038416385650634766,
-      "delta": 0.0968179702758789,
-      "n_star_batches": 9.881386609666965,
-      "n_star_samples": 988.1386609666965
+      "build_time": 1.5186073780059814,
+      "truth_time_per_batch": 0.04817080497741699,
+      "cte_time_per_batch": 0.0027184486389160156,
+      "delta": 0.04545235633850098,
+      "n_star_batches": 33.4109714069901,
+      "n_star_samples": 3341.09714069901
     },
     {
       "size": 1024,
-      "build_time": 2.921278715133667,
-      "truth_time_per_batch": 0.10065960884094238,
-      "cte_time_per_batch": 0.005361080169677734,
-      "delta": 0.09529852867126465,
-      "n_star_batches": 30.653974996935286,
-      "n_star_samples": 3065.3974996935285
+      "build_time": 3.3828656673431396,
+      "truth_time_per_batch": 0.04817080497741699,
+      "cte_time_per_batch": 0.0028297901153564453,
+      "delta": 0.04534101486206055,
+      "n_star_batches": 74.60939455446065,
+      "n_star_samples": 7460.939455446065
     }
   ]
 }

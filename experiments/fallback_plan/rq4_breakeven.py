@@ -11,7 +11,7 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from data.data_loader import load_dataset
 from cte_compression.kernel_thinning import build_cte_background
-from experiments.fallback_plan.common import PAIRS, load_mlp_model, compute_shap
+from experiments.fallback_plan.common import PAIRS, compute_shap
 
 def run_all_rq4():
     print("=== Fallback Plan - RQ4: Breakeven Time ===")
@@ -40,10 +40,7 @@ def run_all_rq4():
         print(f"\n---> Starting RQ4 for pair: {pair['name']}")
         
         try:
-            if pair['family'] == 'neural':
-                model = load_mlp_model(cache_dir, X_train.shape[1])
-            else:
-                model = joblib.load(cache_dir / pair['model_file'])
+            model = joblib.load(cache_dir / pair['model_file'])
         except Exception as e:
             print(f"Skipping {pair['name']} due to model load error: {e}")
             continue

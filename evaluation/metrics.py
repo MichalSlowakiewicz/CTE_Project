@@ -62,6 +62,33 @@ def mae_shap(shap_a, shap_b, global_importance=True):
             maes.append(np.mean(np.abs(shap_a[i] - shap_b[i])))
         return np.mean(maes)
 
+def relative_error_shap(shap_truth, shap_approx, global_importance=True):
+    """
+    Computes the Relative Error (RE) between truth and approximated SHAP values.
+    This is the metric used in Baniecki et al. (ICLR 2025):
+        RE = mean(|approx - truth|) / mean(|truth|)
+
+    Scale-invariant: allows comparison across models with different SHAP magnitudes.
+    Lower is better. RE=0 means perfect match, RE=1 means error equals signal magnitude.
+    """
+    if global_importance:
+        imp_truth = mean_absolute_shap(shap_truth)
+        imp_approx = mean_absolute_shap(shap_approx)
+        numerator = np.mean(np.abs(imp_truth - imp_approx))
+        denominator = np.mean(imp_truth)
+        if denominator < 1e-15:
+            return 0.0
+        return float(numerator / denominator)
+    else:
+        res = []
+        for i in range(len(shap_truth)):
+            num = np.mean(np.abs(shap_truth[i] - shap_approx[i]))
+            den = np.mean(np.abs(shap_truth[i]))
+            if den < 1e-15:
+                continue
+            res.append(num / den)
+        return float(np.mean(res)) if res else 0.0
+
 def top_k_overlap(shap_a, shap_b, k=10, global_importance=True):
     """
     Computes the overlap of the top-k features between two sets of SHAP values.

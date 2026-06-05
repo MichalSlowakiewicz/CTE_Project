@@ -1,3 +1,12 @@
+"""
+plot_results.py — Per-model visualizations for RQ1, RQ2, and RQ3.
+
+Generates per-model plots in results/fallback_plan/<model_name>/:
+  - rq1_plot.png    + rq1_table.md
+  - rq2_mae_plot.png + rq2_features_plot.png
+  - rq3_plot.png
+"""
+
 import json
 from pathlib import Path
 import matplotlib
@@ -5,51 +14,83 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
+MAX_SIZE = 256  # Cap at sqrt(n) — sizes above this lack KT halving rounds
+
 def plot_rq1(model_dir, data):
-    sizes = [exp['size'] for exp in data['experiments']]
-    cte_global = [exp['cte']['mae_global'] for exp in data['experiments']]
-    rand_global = [exp['random']['mae_global'] for exp in data['experiments']]
-    cte_local = [exp['cte']['mae_local'] for exp in data['experiments']]
-    rand_local = [exp['random']['mae_local'] for exp in data['experiments']]
+    exps = [e for e in data['experiments'] if e['size'] <= MAX_SIZE]
+    sizes = [exp['size'] for exp in exps]
+    cte_global = [exp['cte']['mae_global'] for exp in exps]
+    cte_local = [exp['cte']['mae_local'] for exp in exps]
+    
+    # Support both old format (random.mae_global) and new format (random.mae_global_mean)
+    has_std = 'mae_global_mean' in exps[0]['random']
+    if has_std:
+        rand_global = [exp['random']['mae_global_mean'] for exp in exps]
+        rand_global_std = [exp['random']['mae_global_std'] for exp in exps]
+        rand_local = [exp['random']['mae_local_mean'] for exp in exps]
+        rand_local_std = [exp['random']['mae_local_std'] for exp in exps]
+    else:
+        rand_global = [exp['random']['mae_global'] for exp in exps]
+        rand_global_std = [0] * len(sizes)
+        rand_local = [exp['random']['mae_local'] for exp in exps]
+        rand_local_std = [0] * len(sizes)
     
     # 1. Generate the table as a markdown file for the walkthrough
-    table_lines = ["| N_bg | CTE Global MAE | Rand Global MAE | $\\Delta$ Improvement | CTE Local MAE | Rand Local MAE |"]
+    table_lines = ["| N_bg | CTE Global MAE | Rand Global MAE | Δ Improvement | CTE Local MAE | Rand Local MAE |"]
     table_lines.append("|---|---|---|---|---|---|")
-    for s, cg, rg, cl, rl in zip(sizes, cte_global, rand_global, cte_local, rand_local):
+    for i, s in enumerate(sizes):
+        cg, rg, cl, rl = cte_global[i], rand_global[i], cte_local[i], rand_local[i]
         imp = ((rg - cg) / rg) * 100 if rg > 0 else 0
         imp_str = f"**+{imp:.0f}%**" if imp > 0 else f"{imp:.0f}%"
-        table_lines.append(f"| {s} | {cg:.2e} | {rg:.2e} | {imp_str} | {cl:.2e} | {rl:.2e} |")
+        
+        if has_std:
+            rg_str = f"{rg:.2e}±{rand_global_std[i]:.2e}"
+            rl_str = f"{rl:.2e}±{rand_local_std[i]:.2e}"
+        else:
+            rg_str = f"{rg:.2e}"
+            rl_str = f"{rl:.2e}"
+        
+        table_lines.append(f"| {s} | {cg:.2e} | {rg_str} | {imp_str} | {cl:.2e} | {rl_str} |")
     
     with open(model_dir / "rq1_table.md", "w") as f:
         f.write("\n".join(table_lines))
         
-    # 2. Generate Horizontal Bar Charts (Image 1 style)
-    # We will plot all sizes to give a complete view of the progression
+    # 2. Generate Horizontal Bar Charts with error bars
     s_sub = sizes
-    cg_sub = [g * 1e5 for g in cte_global]
-    rg_sub = [g * 1e5 for g in rand_global]
-    cl_sub = [l * 1e5 for l in cte_local]
-    rl_sub = [l * 1e5 for l in rand_local]
+    
+    cg_arr = np.array(cte_global)
+    cl_arr = np.array(cte_local)
+    rg_arr = np.array(rand_global)
+    rl_arr = np.array(rand_local)
+    rg_std = np.array(rand_global_std)
+    rl_std = np.array(rand_local_std)
+    
+    # Scale for readability (x10^-5)
+    scale = 1e5
     
     y = np.arange(len(s_sub))
     height = 0.35
     
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 7))
     
-    ax1.barh(y + height/2, cg_sub, height, label='CTE', color='#c44e52')
-    ax1.barh(y - height/2, rg_sub, height, label='random', color='#4c72b0')
+    ax1.barh(y - height/2, cg_arr * scale, height, label='CTE', color='#c44e52')
+    rg_err_lo = np.minimum(rg_std, rg_arr) * scale  # clip at 0
+    ax1.barh(y + height/2, rg_arr * scale, height, label='random', color='#4c72b0',
+             xerr=[rg_err_lo, rg_std * scale], capsize=3)
     ax1.set_yticks(y)
-    ax1.set_yticklabels([f'N={s}' for s in s_sub])
-    ax1.invert_yaxis()  # labels read top-to-bottom
+    ax1.set_yticklabels([f"N={s}" for s in s_sub])
+    ax1.invert_yaxis()
     ax1.set_xlabel('Global MAE ($\\times 10^{-5}$)')
     ax1.set_title('A) Global Feature Importance', loc='left', fontweight='bold')
     ax1.grid(True, axis='x', linestyle='--', alpha=0.7)
     ax1.legend(loc='lower right')
     
-    ax2.barh(y + height/2, cl_sub, height, label='CTE', color='#c44e52')
-    ax2.barh(y - height/2, rl_sub, height, label='random', color='#4c72b0')
+    ax2.barh(y - height/2, cl_arr * scale, height, label='CTE', color='#c44e52')
+    rl_err_lo = np.minimum(rl_std, rl_arr) * scale  # clip at 0
+    ax2.barh(y + height/2, rl_arr * scale, height, label='random', color='#4c72b0',
+             xerr=[rl_err_lo, rl_std * scale], capsize=3)
     ax2.set_yticks(y)
-    ax2.set_yticklabels([f'N={s}' for s in s_sub])
+    ax2.set_yticklabels([f"N={s}" for s in s_sub])
     ax2.invert_yaxis()
     ax2.set_xlabel('Local MAE ($\\times 10^{-5}$)')
     ax2.set_title('B) Per-Sample Explanation', loc='left', fontweight='bold')
@@ -61,69 +102,97 @@ def plot_rq1(model_dir, data):
     plt.close()
 
 def plot_rq2(model_dir, data):
-    windows = [w['window'] for w in data['windows']]
+    """Plot RQ2 — supports both old (5-window) and new (6-period) JSON format."""
+    windows = data['windows']
     
-    # --- Plot 1: Global MAE over time (Fixed X-axis) ---
-    mae_cte = []
-    mae_rand = []
-    for w in data['windows']:
-        t = np.array(w['truth_importance'])
-        c = np.array(w['cte_importance'])
-        r = np.array(w['rand_importance'])
-        mae_cte.append(np.mean(np.abs(t - c)))
-        mae_rand.append(np.mean(np.abs(t - r)))
+    # Detect new format (has pre-computed MAE/RE fields)
+    new_format = 'cte_mae_global' in windows[0]
+    
+    if new_format:
+        # New format: period-based windows with pre-computed metrics
+        periods = [w['period'] for w in windows]
+        x_labels = [str(p) for p in periods]
+        x_ticks = list(range(len(periods)))
         
+        mae_cte = [w['cte_mae_global'] for w in windows]
+        mae_rand = [w['rand_mae_global_mean'] for w in windows]
+        mae_rand_std = [w['rand_mae_global_std'] for w in windows]
+    else:
+        # Old format: compute MAE from importance vectors
+        x_labels = [str(w.get('window', i+1)) for i, w in enumerate(windows)]
+        x_ticks = list(range(len(windows)))
+        has_std = 'rand_importance_mean' in windows[0]
+        
+        mae_cte = []
+        mae_rand = []
+        mae_rand_std = []
+        for w in windows:
+            t = np.array(w['truth_importance'])
+            c = np.array(w['cte_importance'])
+            r = np.array(w.get('rand_importance_mean', w.get('rand_importance', [])))
+            mae_cte.append(np.mean(np.abs(t - c)))
+            mae_rand.append(np.mean(np.abs(t - r)))
+            if has_std:
+                mae_rand_std.append(np.mean(np.array(w['rand_importance_std'])))
+    
+    # --- Plot 1: Global MAE over time periods ---
     plt.figure(figsize=(8, 5))
-    plt.plot(windows, mae_cte, marker='o', label='CTE (Size 128)', color='#c44e52', linewidth=2)
-    plt.plot(windows, mae_rand, marker='s', label='Random (Size 128)', color='#4c72b0', linewidth=2)
-    plt.title(f'{model_dir.name}: Temporal Drift (Global MAE over Windows)')
-    plt.xlabel('Time Window')
-    plt.ylabel('Global MAE')
-    plt.xticks(windows) # Forces integer x-axis ticks
+    plt.plot(x_ticks, mae_cte, marker='o', label='CTE (N=128)', color='#c44e52', linewidth=2)
+    plt.plot(x_ticks, mae_rand, marker='s', label='Random (N=128)', color='#4c72b0', linewidth=2)
+    
+    if mae_rand_std:
+        plt.fill_between(x_ticks,
+                         [m - s for m, s in zip(mae_rand, mae_rand_std)],
+                         [m + s for m, s in zip(mae_rand, mae_rand_std)],
+                         alpha=0.2, color='#4c72b0', label='Random ±1σ')
+    
+    plt.title(f'{model_dir.name}: Feature Importance Tracking Across Time Periods')
+    plt.xlabel('Time Period')
+    plt.ylabel('Global MAE vs Full Background')
+    plt.xticks(x_ticks, x_labels)
     plt.grid(True, alpha=0.3)
     plt.legend()
     plt.tight_layout()
     plt.savefig(model_dir / 'rq2_mae_plot.png', dpi=300)
     plt.close()
 
-    # --- Plot 2: Feature Tracking over Time (Image 3 style) ---
+    # --- Plot 2: Feature Tracking over Time ---
     feature_names = data['feature_names']
-    # Find top 5 features in window 1 truth
-    w1_truth = data['windows'][0]['truth_importance']
-    top_5_idx = np.argsort(w1_truth)[-5:][::-1]
+    # Find top 5 features by mean truth importance across windows
+    all_truth = np.array([w['truth_importance'] for w in windows])
+    mean_truth = np.mean(all_truth, axis=0)
+    top_5_idx = np.argsort(mean_truth)[-5:][::-1]
     top_5_names = [feature_names[i] for i in top_5_idx]
     
-    # Extract series for these 5 features
-    truth_series = {name: [] for name in top_5_names}
-    cte_series = {name: [] for name in top_5_names}
-    rand_series = {name: [] for name in top_5_names}
-    
-    for w in data['windows']:
-        for i, name in zip(top_5_idx, top_5_names):
-            truth_series[name].append(w['truth_importance'][i])
-            cte_series[name].append(w['cte_importance'][i])
-            rand_series[name].append(w['rand_importance'][i])
-            
     fig, axes = plt.subplots(1, 3, figsize=(18, 5), sharey=True)
     colors = ['#c44e52', '#4c72b0', '#eebd52', '#55a868', '#4c4c4c']
-    markers = ['o', 'o', 'o', 'o', 'o']
     
-    for ax, title, series_dict, letter in zip(axes, 
-                                      ['Ground Truth', 'CTE (N=128)', 'Random (N=128)'], 
-                                      [truth_series, cte_series, rand_series],
-                                      ['A)', 'B)', 'C)']):
-        for color, marker, name in zip(colors, markers, top_5_names):
-            ax.plot(windows, series_dict[name], marker=marker, color=color, linewidth=2, label=name)
+    for ax, title, key, std_key, letter in [
+        (axes[0], 'Ground Truth', 'truth_importance', None, 'A)'),
+        (axes[1], 'CTE (N=128)', 'cte_importance', None, 'B)'),
+        (axes[2], 'Random (N=128)', 
+         'rand_importance_mean' if 'rand_importance_mean' in windows[0] else 'rand_importance',
+         'rand_importance_std' if 'rand_importance_std' in windows[0] else None, 'C)'),
+    ]:
+        for color, fi, name in zip(colors, top_5_idx, top_5_names):
+            vals = [w[key][fi] for w in windows]
+            ax.plot(x_ticks, vals, marker='o', color=color, linewidth=2, label=name)
+            
+            if std_key:
+                stds = [w[std_key][fi] for w in windows]
+                ax.fill_between(x_ticks,
+                                [v - s for v, s in zip(vals, stds)],
+                                [v + s for v, s in zip(vals, stds)],
+                                alpha=0.15, color=color)
         
-        ax.set_title(title)
-        ax.set_title(letter, loc='left', fontweight='bold')
-        ax.set_xlabel('Time Window')
-        ax.set_xticks(windows)
+        ax.set_title(f'{letter} {title}', loc='left', fontweight='bold')
+        ax.set_xlabel('Time Period')
+        ax.set_xticks(x_ticks)
+        ax.set_xticklabels(x_labels)
         ax.grid(True, axis='y', linestyle='--', alpha=0.7)
         if letter == 'A)':
             ax.set_ylabel('Mean |SHAP|')
-            
-    # Unified legend at the bottom
+    
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc='lower center', ncol=5, bbox_to_anchor=(0.5, -0.05))
     
@@ -132,144 +201,94 @@ def plot_rq2(model_dir, data):
     plt.close()
 
 def plot_rq3(model_dir, data):
+    """Plot RQ3 — supports both old and new JSON format."""
     feature_names = data['feature_names']
-    train_imp = np.array(data['train']['truth_importance'])
-    val_imp = np.array(data['val']['truth_importance'])
     
-    # Select top 10 features from train
-    top_10_idx = np.argsort(train_imp)[-10:][::-1]
+    # Detect new format
+    new_format = 'drift_ranking' in data
     
-    names = [feature_names[i] for i in top_10_idx]
-    t_vals = [train_imp[i] for i in top_10_idx]
-    v_vals = [val_imp[i] for i in top_10_idx]
+    if new_format:
+        # New format: train vs val with CTE and Random comparison
+        truth_train = np.array(data['truth']['train_importance'])
+        truth_val = np.array(data['truth']['val_importance'])
+        
+        # Top 10 features by drift magnitude
+        drift_ranking = data['drift_ranking'][:10]
+        
+        names = [feature_names[i] for i in drift_ranking]
+        t_vals = [truth_train[i] for i in drift_ranking]
+        v_vals = [truth_val[i] for i in drift_ranking]
+        drift_vals = [data['feature_drift'][i] for i in drift_ranking]
+    else:
+        # Old format
+        train_imp = np.array(data['train']['truth_importance'])
+        val_imp = np.array(data['val']['truth_importance'])
+        top_10_idx = np.argsort(train_imp)[-10:][::-1]
+        
+        names = [feature_names[i] for i in top_10_idx]
+        t_vals = [train_imp[i] for i in top_10_idx]
+        v_vals = [val_imp[i] for i in top_10_idx]
     
     y = np.arange(len(names))
     height = 0.35
     
-    plt.figure(figsize=(10, 7))
-    # Note: image 4 has train (red) on top, validation (blue) on bottom for each feature
-    # So we plot train at y - height/2 and val at y + height/2, then invert y-axis
-    bars_train = plt.barh(y - height/2, t_vals, height, label='train', color='#c44e52')
-    bars_val = plt.barh(y + height/2, v_vals, height, label='validation', color='#4c72b0')
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 7))
     
-    plt.yticks(y, names)
-    plt.gca().invert_yaxis()
-    plt.xlabel('Mean |SHAP|')
-    plt.title('A) Train vs Validation Importance', loc='left', fontweight='bold')
-    plt.grid(True, axis='x', linestyle='--', alpha=0.7)
+    # Panel A: Train vs Val importance for top drifted features
+    ax1.barh(y - height/2, t_vals, height, label='Train', color='#c44e52')
+    ax1.barh(y + height/2, v_vals, height, label='Validation', color='#4c72b0')
+    ax1.set_yticks(y)
+    ax1.set_yticklabels(names)
+    ax1.invert_yaxis()
+    ax1.set_xlabel('Mean |SHAP|')
+    ax1.set_title('A) Top Drifted Features: Train vs Val', loc='left', fontweight='bold')
+    ax1.grid(True, axis='x', linestyle='--', alpha=0.7)
+    ax1.legend(loc='lower right')
     
-    # Add multiplier annotations
-    for i in range(len(y)):
-        tv = t_vals[i]
-        vv = v_vals[i]
-        if tv > 0:
-            multiplier = vv / tv
-            # place text at the end of the longer bar
-            max_val = max(tv, vv)
-            plt.text(max_val + max(t_vals)*0.01, y[i] + height/4, f'{multiplier:.1f}$\\times$', va='center', fontsize=9)
-            
-    plt.legend(loc='lower right')
+    if new_format:
+        # Panel B: CTE vs Random MAE on train vs val
+        cte_train_mae = data['cte']['train_mae']
+        cte_val_mae = data['cte']['val_mae']
+        rand_train_mae = data['random']['train_mae_mean']
+        rand_val_mae = data['random']['val_mae_mean']
+        rand_train_std = data['random']['train_mae_std']
+        rand_val_std = data['random']['val_mae_std']
+        
+        categories = ['Train Samples', 'Val Samples']
+        cte_maes = [cte_train_mae, cte_val_mae]
+        rand_maes = [rand_train_mae, rand_val_mae]
+        rand_stds = [rand_train_std, rand_val_std]
+        
+        x = np.arange(len(categories))
+        width = 0.35
+        
+        ax2.bar(x - width/2, cte_maes, width, label='CTE', color='#c44e52')
+        # Clip error bars so they don't go below 0 (MAE ≥ 0)
+        rand_arr = np.array(rand_maes)
+        rand_std_arr = np.array(rand_stds)
+        yerr_lo = np.minimum(rand_std_arr, rand_arr)  # can't go below 0
+        ax2.bar(x + width/2, rand_maes, width, label='Random (mean)', color='#4c72b0',
+                yerr=[yerr_lo, rand_std_arr], capsize=5)
+        ax2.set_xticks(x)
+        ax2.set_xticklabels(categories)
+        ax2.set_ylabel('Global MAE vs Full Background')
+        ax2.set_title('B) Approximation Error: Train vs Val Context', loc='left', fontweight='bold')
+        ax2.grid(True, axis='y', linestyle='--', alpha=0.7)
+        ax2.legend()
+    else:
+        # Old format: simple multiplier annotations
+        for i in range(len(y)):
+            tv, vv = t_vals[i], v_vals[i]
+            if tv > 0:
+                multiplier = vv / tv
+                max_val = max(tv, vv)
+                ax1.text(max_val + max(t_vals)*0.01, y[i], f'{multiplier:.1f}×', 
+                        va='center', fontsize=9)
+    
     plt.tight_layout()
     plt.savefig(model_dir / 'rq3_plot.png', dpi=300)
     plt.close()
 
-def plot_rq4(model_dir, data):
-    n_batch = data['n_explain_per_batch']
-    
-    # We will use all sizes for the Break-even plot to answer the user's request
-    sizes = [exp['size'] for exp in data['experiments']]
-    exps = data['experiments']
-    
-    # We might have negative deltas due to microsecond jitter in TreeExplainer
-    # We will clamp delta to a tiny positive number so it mathematically breaks even at a huge number,
-    # or we just explicitly skip it but annotate it properly.
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
-    
-    # A) Cumulative Savings
-    # To avoid extreme clutter in the line plot, we pick 5 representative sizes
-    line_sizes = [8, 16, 64, 256, 1024]
-    line_exps = [e for e in exps if e['size'] in line_sizes]
-    if not line_exps: line_exps = exps
-    
-    colors = plt.cm.tab10.colors
-    
-    # Calculate a sensible max X for the line plot based on models that break even in a reasonable time
-    reasonable_n_stars = [e['n_star_batches'] for e in line_exps if e['n_star_batches'] is not None and e['n_star_batches'] > 0]
-    if reasonable_n_stars:
-        max_batches = max(reasonable_n_stars) * 1.5
-    else:
-        max_batches = 1000 # default
-        
-    x_batches = np.linspace(0, max_batches, 100)
-    
-    for i, exp in enumerate(line_exps):
-        size = exp['size']
-        build = exp['build_time']
-        delta = exp['delta']
-        n_star = exp['n_star_batches']
-        
-        c = colors[i % len(colors)]
-        
-        if delta <= 0 or n_star is None:
-            # It never breaks even due to evaluation being slower than or equal to ground truth
-            y_savings = (delta * x_batches) - build
-            label = f"bg={size} (no speedup)"
-            ax1.plot(x_batches, y_savings, label=label, color=c, linewidth=2, linestyle=':')
-        else:
-            y_savings = (delta * x_batches) - build
-            label = f"bg={size} (n*={int(n_star)})"
-            ax1.plot(x_batches, y_savings, label=label, color=c, linewidth=2)
-            if n_star <= max_batches:
-                ax1.axvline(x=n_star, color=c, linestyle=':', alpha=0.7)
-        
-    ax1.axhline(y=0, color='k', linestyle='--', label='break-even')
-    ax1.set_title('A) Cumulative Savings', loc='left', fontweight='bold')
-    ax1.set_xlabel(f'Number of explanation batches ({n_batch} samples/batch)')
-    ax1.set_ylabel('Cumulative time saved by CTE vs Truth [s]')
-    ax1.grid(True, alpha=0.3)
-    ax1.legend()
-    
-    # B) Break-even Point (Bar Chart)
-    # We plot all sizes for the bar chart
-    bg_labels = []
-    n_stars = []
-    n_pts = []
-    bar_colors = []
-    
-    for i, exp in enumerate(exps):
-        if exp['delta'] > 0 and exp['n_star_batches'] is not None:
-            bg_labels.append(f"bg={exp['size']}")
-            n_stars.append(exp['n_star_batches'])
-            n_pts.append(exp['n_star_samples'])
-            bar_colors.append(colors[i % len(colors)])
-            
-    y = np.arange(len(n_stars))
-    if len(y) > 0:
-        bars = ax2.barh(y, n_stars, height=0.6, color=bar_colors)
-        
-        ax2.set_yticks(y)
-        ax2.set_yticklabels(bg_labels)
-        ax2.invert_yaxis()
-        ax2.set_title('B) Break-even Point (n*)', loc='left', fontweight='bold')
-        ax2.set_xlabel('Break-even batches (n*)')
-        ax2.grid(True, axis='x', linestyle='--', alpha=0.7)
-        
-        # Determine the maximum x-value to set limits properly
-        max_n_star = max(n_stars)
-        ax2.set_xlim(0, max_n_star * 1.3) # Add 30% space for text annotations
-        
-        for i, bar in enumerate(bars):
-            width = bar.get_width()
-            pts = int(n_pts[i])
-            ax2.text(width + max_n_star*0.02, bar.get_y() + bar.get_height()/2, 
-                     f'{int(width)} ({pts:,} pts)', va='center', fontsize=10)
-    else:
-        ax2.text(0.5, 0.5, "No CTE sizes reached break-even\n(Eval time jitter > savings)", ha='center', va='center', transform=ax2.transAxes)
-                 
-    plt.suptitle(f'{model_dir.name}: CTE pays off when explanations are reused', fontsize=16, fontweight='bold')
-    plt.tight_layout()
-    plt.savefig(model_dir / 'rq4_plot.png', dpi=300)
-    plt.close()
 
 def main():
     base_dir = Path(__file__).parent.parent.parent / "results" / "fallback_plan"
@@ -288,11 +307,7 @@ def main():
         if (model_dir / "rq3.json").exists():
             with open(model_dir / "rq3.json") as f:
                 plot_rq3(model_dir, json.load(f))
-                
-        if (model_dir / "rq4.json").exists():
-            with open(model_dir / "rq4.json") as f:
-                plot_rq4(model_dir, json.load(f))
 
 if __name__ == "__main__":
     main()
-    print("All precise visualizations generated successfully!")
+    print("All per-model visualizations generated successfully!")

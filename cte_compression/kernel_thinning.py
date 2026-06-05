@@ -13,15 +13,54 @@ from sklearn.preprocessing import StandardScaler
 from goodpoints import compress
 import goodpoints.kt as kt
 
+
+def _median_bandwidth(X_scaled, n_subsample=5000, seed=42):
+    """
+    Compute the median heuristic bandwidth for a Gaussian kernel.
+
+    Returns λ² such that the kernel k(x,y) = exp(-||x-y||² / λ²)
+    has λ² equal to the median of pairwise squared distances.
+    This is the standard bandwidth selection in the MMD literature.
+
+    We subsample to avoid O(N²) cost on large datasets.
+    """
+    rng = np.random.default_rng(seed)
+    n = X_scaled.shape[0]
+    if n > n_subsample:
+        idx = rng.choice(n, n_subsample, replace=False)
+        X_sub = X_scaled[idx]
+    else:
+        X_sub = X_scaled
+
+    # Compute pairwise squared distances on the subsample
+    # Using the identity ||x-y||² = ||x||² + ||y||² - 2<x,y>
+    norms_sq = np.sum(X_sub ** 2, axis=1)
+    dists_sq = norms_sq[:, None] + norms_sq[None, :] - 2.0 * X_sub @ X_sub.T
+
+    # Extract upper triangle (excluding diagonal zeros)
+    upper_tri = dists_sq[np.triu_indices_from(dists_sq, k=1)]
+    median_sq_dist = float(np.median(upper_tri))
+
+    # Guard against degenerate case (all points identical)
+    if median_sq_dist < 1e-10:
+        median_sq_dist = 1.0
+
+    return median_sq_dist
+
+
 def rbf_kernel_wrapper(X, Y):
     X2d = np.atleast_2d(X)
     Y2d = np.atleast_2d(Y)
 
+    # Safe identity check: only return ones when X and Y are the
+    # exact same object (diagonal self-kernel evaluation).
+    # Previous code used np.shares_memory which could give false
+    # positives for different views of the same underlying array.
     if (X2d.ndim == 2
             and Y2d.ndim == 2
             and X2d.shape == Y2d.shape
             and X2d.shape[0] > 1
-            and np.shares_memory(X, Y)):
+            and X is Y):
         return np.ones(X2d.shape[0])
 
     K = rbf_kernel(X2d, Y2d)
@@ -37,27 +76,32 @@ def build_cte_background(X_data, target_size=50, max_halving_rounds=10, verbose=
     Build a CTE background set using Compress++ (KT) for speed.
     """
     X_clean = X_data.copy().reset_index(drop=True)
-    
+
     # 1. Dynamic Compress phase (extract base_size * 2^g points)
     n_prime = 4 ** int(np.floor(np.log(len(X_clean)) / np.log(4)))
     base_size = int(np.sqrt(n_prime))
-    
+
     g = 0
     while base_size * (2**g) < target_size:
         g += 1
-        
+
     output_size = base_size * (2**g)
-    
+
     if verbose:
         print(f"  [COMPRESS] Extracting {output_size} points (g={g})...")
-        
+
     X_np = np.ascontiguousarray(X_clean.values.astype(np.float64))
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X_np)
-    
-    # Use proper Gaussian bandwidth (k_params = n_features), otherwise it acts as an Identity Matrix!
-    gamma_param = np.array([X_scaled.shape[1]], dtype=np.float64)
-    
+
+    # Bandwidth selection: median heuristic (standard in MMD literature)
+    # k_params[j] = λ² for Gaussian kernel k(x,y) = exp(-||x-y||² / λ²)
+    bandwidth_sq = _median_bandwidth(X_scaled)
+    gamma_param = np.array([bandwidth_sq], dtype=np.float64)
+
+    if verbose:
+        print(f"  [BANDWIDTH] Median heuristic: λ² = {bandwidth_sq:.4f}")
+
     # Use compress_kt directly to respect our dynamic g and avoid forced sqrt(N) truncation
     ids = compress.compress_kt(np.ascontiguousarray(X_scaled), kernel_type=b"gaussian", k_params=gamma_param, g=g)
     X_current = X_clean.iloc[ids].reset_index(drop=True)
@@ -69,10 +113,14 @@ def build_cte_background(X_data, target_size=50, max_halving_rounds=10, verbose=
     if m > 0:
         if verbose:
             print(f"  [KT] Reducing {len(X_current)} points via {m} halving rounds...")
-            
+
         X_np_curr = np.ascontiguousarray(X_current.values.astype(np.float64))
-        X_scaled_curr = scaler.fit_transform(X_np_curr)
-        
+        # FIX: Use transform() instead of fit_transform() to maintain
+        # consistent scaling between Compress++ and KT phases.
+        # Previously fit_transform() recomputed mean/std on the compressed
+        # subset, breaking the kernel space consistency.
+        X_scaled_curr = scaler.transform(X_np_curr)
+
         indices = kt.thin(
             X=X_scaled_curr,
             m=m,
@@ -84,8 +132,10 @@ def build_cte_background(X_data, target_size=50, max_halving_rounds=10, verbose=
 
     # 3. No final trimming. We rely on the natural halving sizes (powers of 2)
     # to maintain strict minimax optimality of the Kernel Thinning coreset.
+    actual_size = len(X_current)
     if verbose:
-        print(f"  [CTE] Final coreset size: {len(X_current)}")
+        print(f"  [CTE] Final coreset size: {actual_size}"
+              + (f" (requested {target_size})" if actual_size != target_size else ""))
 
     return X_current
 

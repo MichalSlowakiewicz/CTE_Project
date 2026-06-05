@@ -15,23 +15,35 @@ __pycache__/
 .tmp/
 .ipynb_checkpoints/
 
-# Data and Cache
-data/cache/
-data/cache_full/
-*.parquet
-
 # IDEs
 .idea/
 .vscode/
 
-# Legacy
+# Legacy / archived
 old_files/
-
-# Large binaries / results
-results/*/rq*.json
-*.log
 archive/
-data/
-models/
+
+# Large binaries and datasets
+*.pkl
+*.pt
+*.pth
+*.log
+*.parquet
+*.npy
+*.csv
+*.csv.gz
+*.zip
+
+# Data directories containing huge raw files
+data/tmp/
+data/cache_full/
+
+# Result JSONs (large, regenerated from code)
+results/fallback_plan/*/rq*.json
+
+# Third-party source
 catboost_info/
 goodpoints-0.4.2/
+
+# Generated images are OK to commit (small, useful for README)
+# !results/fallback_plan/*/*.png
