@@ -4,127 +4,142 @@ compression/kernel_thinning.py - CTE background set construction.
 Implements the "Compress" step from:
     Baniecki et al. "Efficient and Accurate Explanation Estimation
     with Distribution Compression", ICLR 2025.
-
-The key idea: instead of randomly sampling a background set for SHAP,
-use Kernel Thinning (goodpoints library) to find a small coreset that
-minimizes the Maximum Mean Discrepancy (MMD) to the full training distribution.
-This gives better explanations per background point than i.i.d. sampling.
 """
 
 import numpy as np
 import pandas as pd
 from sklearn.metrics.pairwise import rbf_kernel
 from sklearn.preprocessing import StandardScaler
+from goodpoints import compress
 import goodpoints.kt as kt
 
 
+def _median_bandwidth(X_scaled, n_subsample=5000, seed=42):
+    """
+    Compute the median heuristic bandwidth for a Gaussian kernel.
+
+    Returns λ² such that the kernel k(x,y) = exp(-||x-y||² / λ²)
+    has λ² equal to the median of pairwise squared distances.
+    This is the standard bandwidth selection in the MMD literature.
+
+    We subsample to avoid O(N²) cost on large datasets.
+    """
+    rng = np.random.default_rng(seed)
+    n = X_scaled.shape[0]
+    if n > n_subsample:
+        idx = rng.choice(n, n_subsample, replace=False)
+        X_sub = X_scaled[idx]
+    else:
+        X_sub = X_scaled
+
+    # Compute pairwise squared distances on the subsample
+    # Using the identity ||x-y||² = ||x||² + ||y||² - 2<x,y>
+    norms_sq = np.sum(X_sub ** 2, axis=1)
+    dists_sq = norms_sq[:, None] + norms_sq[None, :] - 2.0 * X_sub @ X_sub.T
+
+    # Extract upper triangle (excluding diagonal zeros)
+    upper_tri = dists_sq[np.triu_indices_from(dists_sq, k=1)]
+    median_sq_dist = float(np.median(upper_tri))
+
+    # Guard against degenerate case (all points identical)
+    if median_sq_dist < 1e-10:
+        median_sq_dist = 1.0
+
+    return median_sq_dist
+
+
 def rbf_kernel_wrapper(X, Y):
-    """
-    RBF kernel compatible with the goodpoints calling convention.
-
-    goodpoints calls the kernel function in three patterns:
-      (a) kernel(X[i, newaxis], X)          -> expects 1D array of length n
-      (b) kernel(X[i, newaxis], X[coreset]) -> expects 1D array of length |C|
-      (c) kernel(X, X)                      -> expects 1D diagonal of length n
-
-    Pattern (c) is the problematic one: it happens inside refine_X (kt.py:678)
-    where the library needs the diagonal k(xi, xi) for each point.
-    Without the fix, rbf_kernel returns an (n, n) matrix here, argmin gives
-    a flat index > n, and everything crashes with an IndexError.
-
-    Fix: detect pattern (c) via np.shares_memory and return np.ones(n),
-    because for RBF: k(x, x) = exp(-gamma * 0) = 1.0 always.
-    """
     X2d = np.atleast_2d(X)
     Y2d = np.atleast_2d(Y)
 
-    # Pattern (c): same object on both sides -> return diagonal
+    # Safe identity check: only return ones when X and Y are the
+    # exact same object (diagonal self-kernel evaluation).
+    # Previous code used np.shares_memory which could give false
+    # positives for different views of the same underlying array.
     if (X2d.ndim == 2
             and Y2d.ndim == 2
             and X2d.shape == Y2d.shape
             and X2d.shape[0] > 1
-            and np.shares_memory(X, Y)):
+            and X is Y):
         return np.ones(X2d.shape[0])
 
     K = rbf_kernel(X2d, Y2d)
 
-    # Patterns (a) and (b): one side is a single point -> flatten to 1D
     if K.shape[0] == 1 or K.shape[1] == 1:
         return K.flatten()
 
     return K
 
 
-def build_cte_background(X_data, target_size=50, max_halving_rounds=10,
-                          verbose=True):
+def build_cte_background(X_data, target_size=50, max_halving_rounds=10, verbose=True):
     """
-    Build a CTE background set using Kernel Thinning.
-
-    Compresses X_data into a coreset of ~target_size representative points
-    by running m rounds of kernel halving, where m = floor(log2(n / target_size)).
-
-    Args:
-        X_data:             pd.DataFrame with training features.
-        target_size:        Desired number of background points.
-        max_halving_rounds: Cap on m to prevent very long runtimes.
-        verbose:            Print progress info.
-
-    Returns:
-        pd.DataFrame with target_size (or fewer) rows selected from X_data.
+    Build a CTE background set using Compress++ (KT) for speed.
     """
-    # Reset index so iloc lookups match the numpy array indices
     X_clean = X_data.copy().reset_index(drop=True)
 
-    m = int(np.floor(np.log2(len(X_clean) / target_size)))
+    # 1. Dynamic Compress phase (extract base_size * 2^g points)
+    n_prime = 4 ** int(np.floor(np.log(len(X_clean)) / np.log(4)))
+    base_size = int(np.sqrt(n_prime))
+
+    g = 0
+    while base_size * (2**g) < target_size:
+        g += 1
+
+    output_size = base_size * (2**g)
+
+    if verbose:
+        print(f"  [COMPRESS] Extracting {output_size} points (g={g})...")
+
+    X_np = np.ascontiguousarray(X_clean.values.astype(np.float64))
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X_np)
+
+    # Bandwidth selection: median heuristic (standard in MMD literature)
+    # k_params[j] = λ² for Gaussian kernel k(x,y) = exp(-||x-y||² / λ²)
+    bandwidth_sq = _median_bandwidth(X_scaled)
+    gamma_param = np.array([bandwidth_sq], dtype=np.float64)
+
+    if verbose:
+        print(f"  [BANDWIDTH] Median heuristic: λ² = {bandwidth_sq:.4f}")
+
+    # Use compress_kt directly to respect our dynamic g and avoid forced sqrt(N) truncation
+    ids = compress.compress_kt(np.ascontiguousarray(X_scaled), kernel_type=b"gaussian", k_params=gamma_param, g=g)
+    X_current = X_clean.iloc[ids].reset_index(drop=True)
+
+    # 2. Exact KT phase (standard O(N^2), but N is small now)
+    m = int(np.floor(np.log2(len(X_current) / target_size)))
     m = min(m, max_halving_rounds)
 
-    if m <= 0:
+    if m > 0:
         if verbose:
-            print(f"  [KT] n={len(X_clean)} too small for {target_size} target, "
-                  "using random sample")
-        return X_clean.sample(min(target_size, len(X_clean)), random_state=42)
+            print(f"  [KT] Reducing {len(X_current)} points via {m} halving rounds...")
 
-    # goodpoints requires a C-contiguous float64 array
-    X_np_raw = np.ascontiguousarray(X_clean.values.astype(np.float64))
-    
-    # Scale features so that RBF Kernel (Euclidean distance) works correctly on tabular data
-    scaler = StandardScaler()
-    X_np = scaler.fit_transform(X_np_raw)
-    n_out = len(X_np) // (2 ** m)
+        X_np_curr = np.ascontiguousarray(X_current.values.astype(np.float64))
+        # FIX: Use transform() instead of fit_transform() to maintain
+        # consistent scaling between Compress++ and KT phases.
+        # Previously fit_transform() recomputed mean/std on the compressed
+        # subset, breaking the kernel space consistency.
+        X_scaled_curr = scaler.transform(X_np_curr)
 
+        indices = kt.thin(
+            X=X_scaled_curr,
+            m=m,
+            split_kernel=rbf_kernel_wrapper,
+            swap_kernel=rbf_kernel_wrapper,
+            seed=42,
+        )
+        X_current = X_current.iloc[indices].reset_index(drop=True)
+
+    # 3. No final trimming. We rely on the natural halving sizes (powers of 2)
+    # to maintain strict minimax optimality of the Kernel Thinning coreset.
+    actual_size = len(X_current)
     if verbose:
-        print(f"  [KT] n={len(X_clean):,}  m={m} rounds  -> ~{n_out} points")
+        print(f"  [CTE] Final coreset size: {actual_size}"
+              + (f" (requested {target_size})" if actual_size != target_size else ""))
 
-    indices = kt.thin(
-        X=X_np,
-        m=m,
-        split_kernel=rbf_kernel_wrapper,
-        swap_kernel=rbf_kernel_wrapper,
-        seed=42,
-    )
-
-    coreset = X_clean.iloc[indices]
-
-    if len(coreset) > target_size:
-        coreset = coreset.sample(target_size, random_state=42)
-
-    if verbose:
-        print(f"  [KT] coreset size: {len(coreset)}")
-
-    return coreset
+    return X_current
 
 
 def build_iid_background(X_data, size=1000, seed=42):
-    """
-    Build a standard i.i.d. random background set (baseline for comparison).
-
-    Args:
-        X_data: pd.DataFrame with training features.
-        size:   Number of background points to sample.
-        seed:   Random seed.
-
-    Returns:
-        pd.DataFrame with 'size' randomly sampled rows.
-    """
     n = min(size, len(X_data))
     return X_data.sample(n, random_state=seed).reset_index(drop=True)

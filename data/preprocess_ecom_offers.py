@@ -35,13 +35,9 @@ def main():
         pl.col('offerdate').str.strptime(pl.Date)
     )
 
-    # Downsample users to fit in 8GB RAM (e.g., take 15% of users)
-    fraction = 0.15
-    logger.info(f'Downsampling users to {fraction*100}% to save RAM')
-    sampled_ids = data_train_history.sample(fraction=fraction, seed=42)['id'].to_list()
-    sampled_ids_set = set(sampled_ids)
-    
-    data_train_history = data_train_history.filter(pl.col('id').is_in(sampled_ids))
+    # Use the full dataset
+    logger.info('Processing 100% of users (no downsampling)')
+    sampled_ids_set = set(data_train_history['id'].to_list())
 
     logger.info('Filtering transactions.csv.gz line-by-line (O(1) memory)...')
     filtered_transactions_path = TMP_DATA_PATH / 'transactions_filtered.csv'

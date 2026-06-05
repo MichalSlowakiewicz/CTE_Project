@@ -33,13 +33,18 @@ def train_model(X_train, y_train, X_val=None, y_val=None, params=None,
         spw = num_neg / num_pos if num_pos > 0 else 1.0
         
         params = {
-            "n_estimators": 300, # Increased, will be controlled by early stopping
-            "max_depth": 4,
-            "learning_rate": 0.1,
+            "n_estimators": 300,
+            "max_depth": 5,
+            "learning_rate": 0.05,
+            "subsample": 0.8,
+            "colsample_bytree": 0.8,
+            "min_child_weight": 5,
+            "reg_alpha": 1.0,
+            "reg_lambda": 1.0,
             "random_state": 42,
             "eval_metric": "logloss",
             "scale_pos_weight": spw,
-            "early_stopping_rounds": 10 if (X_val is not None and y_val is not None) else None
+            "early_stopping_rounds": 20 if (X_val is not None and y_val is not None) else None
         }
 
     model = xgb.XGBClassifier(**params)

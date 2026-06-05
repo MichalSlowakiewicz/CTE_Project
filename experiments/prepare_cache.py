@@ -24,7 +24,7 @@ def prepare_global_cache():
         warnings.warn(f"Failed to load TabReD dataset, falling back to synthetic. Error: {e}")
         data = load_dataset()
         
-    train_size = min(50_000, len(data['X_train']))
+    train_size = len(data['X_train'])
     sampled_indices = data['X_train'].sample(train_size, random_state=42).index
     X_train = data['X_train'].loc[sampled_indices].reset_index(drop=True)
     y_train = data['y_train'][sampled_indices]
