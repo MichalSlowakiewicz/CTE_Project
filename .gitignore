@@ -39,11 +39,15 @@ data/tmp/
 data/cache_full/
 
 # Result JSONs (large, regenerated from code)
-results/fallback_plan/*/rq*.json
+results/main_pipeline/*/rq*.json
 
 # Third-party source
 catboost_info/
 goodpoints-0.4.2/
 
 # Generated images are OK to commit (small, useful for README)
-# !results/fallback_plan/*/*.png
+# !results/main_pipeline/*/*.png
+
+# OS generated files
+.DS_Store
+desktop.ini
