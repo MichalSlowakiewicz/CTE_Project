@@ -39,23 +39,6 @@ def prepare_full_cache():
     X_train.to_parquet(bg_truth_path)
     print(f"   Ground Truth saved to {bg_truth_path}")
     
-    bg_sizes = [4, 8, 16, 32, 64, 128, 256, 512, 1024]
-    print(f"\n4. Building CTE Backgrounds for sizes: {bg_sizes}")
-    
-    # Progress bar for background sizes
-    for size in tqdm(bg_sizes, desc="Generating Coresets (CTE)"):
-        bg_cte_path = cache_dir / f'bg_cte_{size}.parquet'
-        
-        # We also want to see when it's done for each size
-        tqdm.write(f"\n--- Starting Kernel Thinning for Target Size: {size} ---")
-        t0 = time.time()
-        # verbose=False to keep tqdm clean, but goodpoints might print anyway
-        bg_cte = build_cte_background(X_train, target_size=size, verbose=False)
-        t1 = time.time()
-        
-        bg_cte.to_parquet(bg_cte_path)
-        tqdm.write(f"   Completed in {t1-t0:.1f} seconds. Saved to {bg_cte_path.name}")
-    
     print("\n=== Global Cache Preparation Complete! ===")
 
 if __name__ == "__main__":

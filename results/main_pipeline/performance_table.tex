@@ -1,0 +1,19 @@
+\begin{table}[h!]
+\centering
+\caption{Predictive Performance of Evaluated Models on the Test Set}
+\label{tab:model_performance}
+\begin{tabular}{llccc}
+\toprule
+\textbf{Model} & \textbf{Family} & \textbf{ROC-AUC} & \textbf{Accuracy} & \textbf{F1-Score} \\
+\midrule
+XGBoost & Tree & 0.5665 & 0.5996 & 0.3969 \\
+Random Forest & Tree & 0.5680 & 0.6445 & 0.1995 \\
+LightGBM & Tree & 0.5697 & 0.6397 & 0.0000 \\
+CatBoost & Tree & 0.5633 & 0.5961 & 0.4146 \\
+LogReg & Linear & 0.5571 & 0.5907 & 0.3871 \\
+Ridge & Linear & 0.5745 & 0.6442 & 0.3201 \\
+Lasso & Linear & 0.5748 & 0.6458 & 0.0772 \\
+SVC & Linear & 0.5767 & 0.6272 & 0.3722 \\
+\bottomrule
+\end{tabular}
+\end{table}

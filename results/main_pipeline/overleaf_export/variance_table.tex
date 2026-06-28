@@ -1,0 +1,19 @@
+\begin{table}[h!]
+\centering
+\caption{Global MAE Standard Deviation at $N=128$ (30 independent seeds)}
+\label{tab:variance_reduction}
+\begin{tabular}{llccc}
+\toprule
+\textbf{Model} & \textbf{Family} & \textbf{Random Std ($\sigma$)} & \textbf{CTE Std ($\sigma$)} & \textbf{Variance Reduction} \\
+\midrule
+CatBoost & Tree & 4.66e-05 & 3.36e-05 & \textbf{27.9\%} \\
+Lasso & Linear & 1.07e-03 & 1.03e-04 & \textbf{90.4\%} \\
+LightGBM & Tree & 4.58e-05 & 2.43e-05 & \textbf{46.8\%} \\
+LogReg & Linear & 2.45e-05 & 1.28e-05 & \textbf{47.8\%} \\
+Random Forest & Tree & 2.71e-05 & 1.97e-05 & \textbf{27.4\%} \\
+Ridge & Linear & 5.93e-04 & 5.47e-05 & \textbf{90.8\%} \\
+SVC & Linear & 2.26e-04 & 3.24e-05 & \textbf{85.7\%} \\
+XGBoost & Tree & 4.85e-05 & 2.48e-05 & \textbf{48.9\%} \\
+\bottomrule
+\end{tabular}
+\end{table}
