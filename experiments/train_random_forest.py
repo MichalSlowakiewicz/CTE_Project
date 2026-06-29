@@ -13,7 +13,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import roc_auc_score, log_loss
 
 def objective(trial, X_train, y_train, X_val, y_val):
-    # Przestrzeń hiperparametrów dla Random Forest
+    # Hyperparameter space for Random Forest
     params = {
         "n_estimators": trial.suggest_int("n_estimators", 50, 300),
         "max_depth": trial.suggest_int("max_depth", 5, 25),

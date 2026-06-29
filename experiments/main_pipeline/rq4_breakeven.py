@@ -56,7 +56,7 @@ def run_all_rq4():
             
             for size in [4, 8, 16, 32, 64, 128, 256, 512, 1024]:
                 print(f"   Testing breakeven for CTE size {size}...")
-                # 1. Kompresja (Kernel Thinning build time)
+                # 1. Compression (Kernel Thinning build time)
                 t_build_start = time.time()
                 build_cte_background(X_train, target_size=size, verbose=False)
                 build_time = time.time() - t_build_start

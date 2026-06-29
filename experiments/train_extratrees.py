@@ -17,7 +17,7 @@ def train_and_cache_extratrees():
     X_train, y_train = data['X_train'], data['y_train']
     X_val, y_val = data['X_val'], data['y_val']
     
-    # Trenujemy prosty, domyślny model
+    # Train a simple, default model
     model = ExtraTreesClassifier(n_estimators=100, random_state=42, n_jobs=-1)
     model.fit(X_train, y_train)
     
