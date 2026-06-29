@@ -15,7 +15,7 @@ from sklearn.metrics import roc_auc_score, log_loss
 def objective(trial, X_train, y_train, X_val, y_val, num_neg, num_pos):
     spw = num_neg / num_pos if num_pos > 0 else 1.0
     
-    # Szersza przestrzeń hiperparametrów
+    # Broader hyperparameter space
     params = {
         "n_estimators": trial.suggest_int("n_estimators", 100, 1000),
         "max_depth": trial.suggest_int("max_depth", 2, 12),

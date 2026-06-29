@@ -20,19 +20,19 @@ def objective(trial, X_train, y_train, X_val, y_val):
         "l1_ratio": trial.suggest_float("l1_ratio", 0.0, 1.0),
         "penalty": "elasticnet",
         "solver": "saga",
-        "max_iter": 200, # saga może potrzebować więcej iteracji, ale chcemy żeby działał w rozsądnym czasie
+        "max_iter": 200, # 'saga' solver may need more iterations, but we want it to run in a reasonable time
         "random_state": 42,
         "class_weight": "balanced",
         "n_jobs": -1
     }
     
-    # Logistic Regression zawsze wymaga przeskalowanych danych!
+    # Logistic Regression always requires scaled data!
     model = Pipeline([
         ('scaler', StandardScaler()),
         ('logreg', LogisticRegression(**params))
     ])
     
-    # Ignorujemy ostrzeżenia o braku konwergencji by nie psuć logów Optuny
+    # Ignore convergence warnings to prevent cluttering Optuna logs
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         model.fit(X_train, y_train)
@@ -56,7 +56,7 @@ def train_and_optimize():
     optuna.logging.set_verbosity(optuna.logging.WARNING)
     study = optuna.create_study(direction="minimize")
     
-    # Ponieważ SAGA solver jest wolny dla 100k próbek, robimy tylko 20 iteracji
+    # Since the SAGA solver is slow for 100k samples, we only do 20 iterations
     n_trials = 20
     print(f"   Running {n_trials} trials for Logistic Regression...")
     
@@ -75,7 +75,7 @@ def train_and_optimize():
         **best_params,
         "penalty": "elasticnet",
         "solver": "saga",
-        "max_iter": 500, # Dla finałowego modelu dajemy więcej iteracji na konwergencję
+        "max_iter": 500, # Give more iterations for the final model to converge
         "random_state": 42,
         "class_weight": "balanced",
         "n_jobs": -1

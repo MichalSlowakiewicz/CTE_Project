@@ -15,7 +15,7 @@ from sklearn.metrics import roc_auc_score, log_loss
 def objective(trial, X_train, y_train, X_val, y_val, num_neg, num_pos):
     spw = num_neg / num_pos if num_pos > 0 else 1.0
     
-    # Przestrzeń hiperparametrów dla LightGBM (znanego z doskonałej odporności na przeuczenie)
+    # Hyperparameter space for LightGBM (known for its excellent resistance to overfitting)
     params = {
         "n_estimators": trial.suggest_int("n_estimators", 100, 800),
         "max_depth": trial.suggest_int("max_depth", 3, 15),
@@ -33,7 +33,7 @@ def objective(trial, X_train, y_train, X_val, y_val, num_neg, num_pos):
     }
     
     model = lgb.LGBMClassifier(**params)
-    # LightGBM ma wbudowane wsparcie dla eval_set i early stopping w metodzie fit (w nowszych wersjach używamy callbacks)
+    # LightGBM has built-in support for eval_set and early stopping (in newer versions using callbacks)
     model.fit(
         X_train, y_train,
         eval_set=[(X_val, y_val)],
