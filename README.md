@@ -1,10 +1,10 @@
-# Compress Then Explain (CTE) 🌲⚡
+# Compress Then Explain (CTE)
 
 A research repository exploring the scalability, efficiency, and robustness of the **Compress Then Explain (CTE)** algorithm against traditional Random Sampling background distributions for Explainable AI (XAI).
 
 > **🎓 Final Research Paper:** The complete findings of this project are detailed in our main paper: [**CTE_report_paper.pdf**](./CTE_report_paper.pdf)
 
-## 🧠 Project Overview
+## Project Overview
 
 This project dynamically compresses large background datasets ($N=100,000$) into highly representative, ultra-small *coresets* ($N \in \{4 \dots 256\}$) using the **Kernel Thinning** algorithm. We evaluate the approximation accuracy (Global & Local MAE), temporal drift tracking, generalization gaps, and architectural agnosticism of the resulting SHAP explanations.
 
@@ -17,7 +17,7 @@ This project dynamically compresses large background datasets ($N=100,000$) into
 
 ---
 
-## 📂 Repository Structure
+## Repository Structure
 
 ```text
 CTE_Project/
@@ -42,7 +42,7 @@ CTE_Project/
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Environment Setup
 ```bash
@@ -68,7 +68,7 @@ python experiments/main_pipeline/plot_results.py
 python experiments/main_pipeline/plot_aggregated.py
 ```
 
-## 📈 Results Structure
+## Results Structure
 All experimental logs and computed metrics are saved in the `results/main_pipeline/` directory. 
 
 Inside each model's directory (e.g., `results/main_pipeline/xgb_tree/`), you will find:
