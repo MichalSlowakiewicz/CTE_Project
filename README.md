@@ -2,7 +2,7 @@
 
 A research repository exploring the scalability, efficiency, and robustness of the **Compress Then Explain (CTE)** algorithm against traditional Random Sampling background distributions for Explainable AI (XAI).
 
-> **🎓 Final Research Paper:** The complete findings of this project are detailed in our main paper: [**CTE_report_paper.pdf**](./CTE_report_paper.pdf)
+> ** Final Research Paper:** The complete findings of this project are detailed in our main paper: [**CTE_report_paper.pdf**](./CTE_report_paper.pdf)
 
 ## Project Overview
 
